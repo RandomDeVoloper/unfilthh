@@ -1,0 +1,519 @@
+<title>UNFILTH Takip</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: single-column task tracker with week sections and progress bars */
+:root {
+  --bg: #0e1117;
+  --surface: #161b22;
+  --surface-hover: #1c2129;
+  --border: #30363d;
+  --fg: #e6edf3;
+  --fg-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent-glow: rgba(88,166,255,0.15);
+  --green: #3fb950;
+  --yellow: #d29922;
+  --red: #f85149;
+  --orange: #db6d28;
+  color-scheme: dark;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-hover: #f0f2f5;
+    --border: #d0d7de;
+    --fg: #1f2328;
+    --fg-muted: #656d76;
+    --accent: #0969da;
+    --accent-glow: rgba(9,105,218,0.08);
+    --green: #1a7f37;
+    --yellow: #9a6700;
+    --red: #cf222e;
+    --orange: #bc4c00;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --surface-hover: #f0f2f5;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --fg-muted: #656d76;
+  --accent: #0969da;
+  --accent-glow: rgba(9,105,218,0.08);
+  --green: #1a7f37;
+  --yellow: #9a6700;
+  --red: #cf222e;
+  --orange: #bc4c00;
+  color-scheme: light;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 0 60px;
+}
+
+h1 {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  margin: 0 0 28px;
+}
+
+/* Summary bar */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.stat-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stat-num.green { color: var(--green); }
+.stat-num.yellow { color: var(--yellow); }
+.stat-num.red { color: var(--red); }
+.stat-num.accent { color: var(--accent); }
+.stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+/* Week sections */
+.week {
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.week-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface);
+  transition: background 0.15s;
+}
+.week-header:hover { background: var(--surface-hover); }
+.week-header .arrow {
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.week.collapsed .arrow { transform: rotate(-90deg); }
+.week-title {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
+}
+.week-dates {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+.week-progress {
+  width: 80px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.week-progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.week-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.week-body {
+  border-top: 1px solid var(--border);
+}
+.week.collapsed .week-body { display: none; }
+
+/* Task rows */
+.task {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  min-height: 40px;
+}
+.task:last-child { border-bottom: none; }
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  background: transparent;
+  padding: 0;
+  color: transparent;
+  font-size: 11px;
+}
+.task-check.done {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.task-check.wip {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+.task-check.blocked {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+.task-name {
+  min-width: 0;
+}
+.task-name.done-text {
+  text-decoration: line-through;
+  color: var(--fg-muted);
+}
+
+.task-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.task-status.s-done { background: var(--green); color: #fff; border-color: var(--green); }
+.task-status.s-wip { background: var(--yellow); color: #000; border-color: var(--yellow); }
+.task-status.s-blocked { background: var(--red); color: #fff; border-color: var(--red); }
+
+/* Notes section at bottom */
+.notes-section {
+  margin-top: 32px;
+}
+.notes-section h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.note-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.note-card h3 {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  color: var(--accent);
+}
+.note-card textarea {
+  width: 100%;
+  min-height: 60px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.8rem;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+.note-card textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+@media (max-width: 600px) {
+  .week-dates { display: none; }
+  .task { grid-template-columns: 28px 1fr auto; font-size: 0.8rem; }
+  .summary { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+
+<div class="wrap">
+  <h1>UNFILTH // TAKIP</h1>
+  <p class="subtitle">10 haftalık üretim süreci — 27 Ekim 2026 → 4 Ocak 2027</p>
+
+  <div class="summary" id="summary"></div>
+  <div id="weeks"></div>
+
+  <div class="notes-section">
+    <h2>Haftalık Notlar</h2>
+    <div class="notes-grid" id="notes"></div>
+  </div>
+</div>
+
+<script>
+const WEEKS = [
+  { id:'w1', title:'H1 — Prototip', dates:'27 Eki – 2 Kas', tasks:[
+    'UE 5.8 proje + Git + LFS kurulumu',
+    'BP_WaterGun: Dar Jet line trace (20m) + impulse',
+    'DT_Debris DataTable: 3 tip (şişe/kutu/varil)',
+    'BP_Debris actor + Chaos Physics',
+    'Chain Boost: Debris→Debris ekstra impulse',
+    'Greybox level 20×15m + 3 Cluster',
+    'Zone trigger volume + cleanup %',
+    'Minimal Niagara su partikülleri',
+    'Placeholder ses (2-3 efekt)',
+    'Crosshair HUD + Sleep policy (1s)'
+  ]},
+  { id:'w2', title:'H2 — Core Loop', dates:'3–9 Kas', tasks:[
+    'Geniş Spray: sphere trace 2.5m + radial force',
+    'Köpük Bombası: sticky blob + 2-3s radial force',
+    'Scroll ile mod geçişi (3 mod döngüsü)',
+    '2 yeni debris (lastik, metal) → toplam 5',
+    '3 mod için ayrı Niagara identity',
+    'Camera shake (2 katman) + Debris pushback',
+    '50 simultaneous physics debris limiti'
+  ]},
+  { id:'w3', title:'H3 — Playtest', dates:'10–16 Kas', tasks:[
+    'Minimal analytics entegrasyonu',
+    '3-5 kişi playtest oturumu',
+    'Gözlem notları + metrik değerlendirmesi',
+    'Go/no-go kararı',
+    'Chain Boost multiplier ayarı',
+    'Bug fix pass'
+  ]},
+  { id:'w4', title:'H4 — Kir Mask + Loot', dates:'17–23 Kas', tasks:[
+    'World-space render target (kir mask)',
+    'Mask erosion: su vurunca RT üzerinde daire',
+    'Tonal shift shader (desaturated→vibrant)',
+    'Debris impulse + mask erosion paralel',
+    'Loot actor: Cluster altında gizli',
+    'Magnetik loot toplama (3m base)',
+    'Loot → Coin dönüşümü (4 tip)'
+  ]},
+  { id:'w5', title:'H5 — Combo + Upgrade', dates:'24–30 Kas', tasks:[
+    'Combo sistemi: artan çarpan + 5s timer',
+    'Gold-tier loot kilidi (combo kırılırsa)',
+    'Skorboard UI: stats + upgrade satın alma',
+    '4 upgrade node implement (405₩ toplam)',
+    'Tank Kapasitesi greyed-out göster',
+    'Ekonomi balansı + JSON auto-save'
+  ]},
+  { id:'w6', title:'H6 — Art + Level', dates:'1–7 Ara', tasks:[
+    'Low-poly stilize assetler',
+    'Şehir environment: kirli mahalle atmosferi',
+    'Lighting pass: bölüm başına mood',
+    '4 bölüm layout inşa (Sokak→Boss Alan)',
+    'Cluster yerleşimi + loot dağılımı',
+    'Zone trigger volumeları yerleştir'
+  ]},
+  { id:'w7', title:'H7 — Ses', dates:'8–14 Ara', tasks:[
+    '10-15 ses efekti entegrasyonu',
+    'Dinamik müzik: 4 katman crossfade',
+    'Combo değerine göre müzik tetikleme',
+    'Boss Alan müziği',
+    'Debris kütlesine göre çarpma ses varyasyonları'
+  ]},
+  { id:'w8', title:'H8 — UI + Polish', dates:'15–21 Ara', tasks:[
+    'Combo counter HUD',
+    'Before/After Reveal: SceneCapture2D + wipe',
+    'Main menu + Pause menu',
+    'Loading screen: tüm kontroller (PWS tarzı)',
+    'In-game tooltip (2 adet) + screen effects',
+    'Debris fade-out görseli'
+  ]},
+  { id:'w9', title:'H9 — Pazarlama', dates:'22–28 Ara', tasks:[
+    'Steam sayfa tasarımı + açıklama',
+    '45s fragman (Steam)',
+    '15s TikTok/Shorts clip',
+    'Pitch deck: 6 slide (GameDev.ist)',
+    'Ekran görüntüleri (5+ adet)'
+  ]},
+  { id:'w10', title:'H10 — Teslim', dates:'29 Ara – 4 Oca', tasks:[
+    'Tez yazımı: 10-15 sayfa postmortem',
+    'Son bug fix pass',
+    'Shipping build paketleme',
+    'Credits ekranı + final playtest'
+  ]}
+];
+
+const STATES = ['bekliyor','devam','done','blocked'];
+const LABELS = {bekliyor:'Bekliyor',devam:'Devam',done:'Bitti',blocked:'Bloke'};
+
+function load() {
+  try { return JSON.parse(localStorage.getItem('unfilth_tracker')||'{}'); } catch(e) { return {}; }
+}
+function save(d) {
+  try { localStorage.setItem('unfilth_tracker', JSON.stringify(d)); } catch(e) {}
+}
+
+function getState(data, wid, ti) {
+  return (data[wid]||{})[ti] || 'bekliyor';
+}
+function setState(data, wid, ti, s) {
+  if (!data[wid]) data[wid] = {};
+  data[wid][ti] = s;
+  save(data);
+}
+function getNote(data, wid) {
+  return (data._notes||{})[wid] || '';
+}
+function setNote(data, wid, txt) {
+  if (!data._notes) data._notes = {};
+  data._notes[wid] = txt;
+  save(data);
+}
+
+function nextState(s) {
+  const i = STATES.indexOf(s);
+  return STATES[(i+1) % STATES.length];
+}
+
+function render() {
+  const data = load();
+  let totalDone=0, totalWip=0, totalBlocked=0, totalAll=0;
+
+  const weeksEl = document.getElementById('weeks');
+  weeksEl.innerHTML = '';
+
+  WEEKS.forEach(w => {
+    const done = w.tasks.filter((_,i) => getState(data,w.id,i)==='done').length;
+    const wip = w.tasks.filter((_,i) => getState(data,w.id,i)==='devam').length;
+    const blocked = w.tasks.filter((_,i) => getState(data,w.id,i)==='blocked').length;
+    const pct = Math.round(done/w.tasks.length*100);
+    totalDone += done; totalWip += wip; totalBlocked += blocked; totalAll += w.tasks.length;
+
+    const collapsed = data._collapsed?.[w.id];
+
+    const div = document.createElement('div');
+    div.className = 'week' + (collapsed ? ' collapsed' : '');
+    div.innerHTML = `
+      <div class="week-header">
+        <span class="arrow">▼</span>
+        <span class="week-title">${w.title}</span>
+        <span class="week-dates">${w.dates}</span>
+        <div class="week-progress"><div class="week-progress-fill" style="width:${pct}%"></div></div>
+        <span class="week-pct">${pct}%</span>
+      </div>
+      <div class="week-body">
+        ${w.tasks.map((t,i) => {
+          const s = getState(data, w.id, i);
+          const checkCls = s==='done'?'done':s==='devam'?'wip':s==='blocked'?'blocked':'';
+          const checkIcon = s==='done'?'✓':s==='devam'?'◐':s==='blocked'?'✕':'';
+          const statusCls = s==='done'?'s-done':s==='devam'?'s-wip':s==='blocked'?'s-blocked':'';
+          const nameCls = s==='done'?'task-name done-text':'task-name';
+          return `<div class="task">
+            <button class="task-check ${checkCls}" data-w="${w.id}" data-i="${i}">${checkIcon}</button>
+            <span class="${nameCls}">${t}</span>
+            <button class="task-status ${statusCls}" data-w="${w.id}" data-i="${i}">${LABELS[s]}</button>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    div.querySelector('.week-header').addEventListener('click', () => {
+      if (!data._collapsed) data._collapsed = {};
+      data._collapsed[w.id] = !data._collapsed[w.id];
+      save(data);
+      render();
+    });
+    weeksEl.appendChild(div);
+  });
+
+  // Event delegation for task buttons
+  weeksEl.querySelectorAll('.task-check, .task-status').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wid = btn.dataset.w, ti = parseInt(btn.dataset.i);
+      const cur = getState(data, wid, ti);
+      setState(data, wid, ti, nextState(cur));
+      render();
+    });
+  });
+
+  // Summary
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="stat-num accent">${totalAll}</div><div class="stat-label">Toplam Görev</div></div>
+    <div class="stat"><div class="stat-num green">${totalDone}</div><div class="stat-label">Tamamlandı</div></div>
+    <div class="stat"><div class="stat-num yellow">${totalWip}</div><div class="stat-label">Devam Ediyor</div></div>
+    <div class="stat"><div class="stat-num red">${totalBlocked}</div><div class="stat-label">Bloke</div></div>
+  `;
+
+  // Notes
+  const notesEl = document.getElementById('notes');
+  notesEl.innerHTML = '';
+  WEEKS.forEach(w => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.innerHTML = `<h3>${w.title}</h3><textarea placeholder="Bu haftanın notları...">${getNote(data, w.id)}</textarea>`;
+    card.querySelector('textarea').addEventListener('input', e => {
+      setNote(data, w.id, e.target.value);
+    });
+    notesEl.appendChild(card);
+  });
+}
+
+render();
+</script>
